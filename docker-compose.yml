@@ -1,0 +1,11 @@
+version: '2.19.1'
+
+services:
+    backend.local:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        working_dir: /main
+
+        ports:
+            - "8080:8080"

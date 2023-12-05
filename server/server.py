@@ -10,7 +10,7 @@ import config
 async def archive(request):
     logging.info("Start archive")
 
-    hash_ = request.match_info.get('archive_hash')
+    hash_ = request.match_info['archive_hash']
     direction = os.path.join(config.PHOTO_DIR, hash_)
 
     if not os.path.exists(direction):
@@ -22,9 +22,9 @@ async def archive(request):
     response.headers['Content-Type'] = 'application/zip'
     await response.prepare(request)
 
-    commands = ['zip', '-', direction, '-r', '-j']
+    commands = ['zip', '-r', '-', direction]
     pipe = asyncio.subprocess.PIPE
-    proc = await asyncio.create_subprocess_exec(*commands, stdout=pipe, stderr=pipe)
+    proc = await asyncio.create_subprocess_exec(*commands, stdout=pipe, stderr=pipe, cwd=direction)
     try:
         while True:
             data = await proc.stdout.read(1024)
@@ -40,11 +40,13 @@ async def archive(request):
 
     except asyncio.CancelledError:
         logging.info(f"Download of {direction} was INTERRUPTED.")
-        response.force_close()
-        proc.kill()
         raise asyncio.CancelledError
 
-    return response
+    finally:
+        if proc.returncode:
+            proc.kill()
+            await proc.communicate()
+        return response
 
 
 async def handle_index_page(request):
